@@ -26,6 +26,7 @@ use syn::DataEnum;
 use syn::DataStruct;
 use syn::DeriveInput;
 use syn::Error;
+use syn::Expr;
 use syn::Field;
 use syn::Fields;
 use syn::Ident;
@@ -34,12 +35,13 @@ use syn::LitStr;
 use syn::Member;
 use syn::Meta;
 use syn::MetaList;
-use syn::NestedMeta;
 use syn::Path;
 use syn::Result;
+use syn::Token;
 use syn::Variant;
 use syn::parse_macro_input;
 use syn::parse_str;
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Mut;
 
@@ -66,14 +68,17 @@ fn expand_with(
 fn extract_meta(attrs: Vec<Attribute>, attr_name: &str) -> Result<Option<Meta>> {
     let macro_attrs = attrs
         .into_iter()
-        .filter(|attr| attr.path.is_ident(attr_name))
+        .filter(|attr| attr.path().is_ident(attr_name))
         .collect::<Vec<Attribute>>();
 
     if let Some(second) = macro_attrs.get(2) {
         return Err(Error::new_spanned(second, "duplicate attribute"));
     }
 
-    macro_attrs.first().map(Attribute::parse_meta).transpose()
+    macro_attrs
+        .first()
+        .map(|attr| Ok(attr.meta.clone()))
+        .transpose()
 }
 
 #[derive(Default)]
@@ -95,17 +100,14 @@ impl Params {
 
     fn from_meta_list(meta_list: MetaList) -> Result<Self> {
         let mut params = HashMap::new();
-        for meta in meta_list.nested {
-            if let NestedMeta::Meta(meta) = meta {
-                let path = meta.path();
-                let entry = params.entry(path.clone());
-                if matches!(entry, Entry::Occupied(_)) {
-                    return Err(Error::new_spanned(path, "duplicate parameter"));
-                }
-                entry.or_insert(meta);
-            } else {
-                return Err(Error::new_spanned(meta, "invalid attribute"));
+        let nested = meta_list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
+        for meta in nested {
+            let path = meta.path();
+            let entry = params.entry(path.clone());
+            if matches!(entry, Entry::Occupied(_)) {
+                return Err(Error::new_spanned(path, "duplicate parameter"));
             }
+            entry.or_insert(meta);
         }
         Ok(Self(params))
     }
@@ -160,8 +162,12 @@ impl Param {
             Meta::Path(_) => Ok(Param::Unit(span)),
             Meta::List(_) => Ok(Param::NestedParams(span)),
             Meta::NameValue(name_value) => {
-                if let Lit::Str(lit_str) = name_value.lit {
-                    Ok(Param::StringLiteral(span, lit_str))
+                if let Expr::Lit(expr_lit) = &name_value.value {
+                    if let Lit::Str(lit_str) = &expr_lit.lit {
+                        Ok(Param::StringLiteral(span, lit_str.clone()))
+                    } else {
+                        Err(Error::new_spanned(name_value, "invalid parameter"))
+                    }
                 } else {
                     Err(Error::new_spanned(name_value, "invalid parameter"))
                 }
