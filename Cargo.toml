@@ -13,7 +13,7 @@
 # limitations under the License.
 
 [workspace]
-members = ["visitor", "xtask"]
+members = ["visitor", "visitor-derive", "xtask"]
 resolver = "2"
 
 [workspace.package]
@@ -23,6 +23,9 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/visitor"
 rust-version = "1.85.0"
+
+[workspace.dependencies]
+visitor-derive = { version = "0.1.0", path = "visitor-derive" }
 
 [workspace.lints.rust]
 unknown_lints = "deny"

@@ -23,7 +23,30 @@ readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[features]
+default = []
+derive = ["visitor-derive"]
+std = []
+
+# Visit all trivial types.
+#
+# By default, a.k.a., without this feature, Traversal implements no-ops for trivial types.
+# Because in many cases, users want to visit only non-trivial types, and no ops can be
+# applied when traversing trivial types like integers, floats, booleans, and unit.
+traverse-trivial = []
+
+# Visit all primary standard library types.
+#
+# By default, a.k.a., without this feature, Traversal implements no-ops for primary standard
+# library types. Currently, primary standard library types include only String.
+#
+# Containers like Vec, Option, Result, HashMap, etc., are not considered primary standard
+# library types, because they are generic over their contained types, and thus can be
+# traversed via their contained types.
+traverse-std = []
+
 [dependencies]
+visitor-derive = { workspace = true, optional = true }
 
 [lints]
 workspace = true
