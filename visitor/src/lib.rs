@@ -21,6 +21,13 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+#[cfg(feature = "derive")]
+/// See [`Traversable`].
+pub use visitor_derive::Traversable;
+#[cfg(feature = "derive")]
+/// See [`TraversableMut`].
+pub use visitor_derive::TraversableMut;
+
 pub use self::impl_visitor::*;
 
 /// Whether the visitor is entering or exiting a node.
@@ -59,7 +66,7 @@ mod impl_visitor {
     impl<T: Any, F: FnMut(&T, Event)> Visitor for FnVisitor<T, F> {
         fn visit(&mut self, this: &dyn Any, event: Event) {
             if let Some(item) = <dyn Any>::downcast_ref::<T>(this) {
-                (&mut self.f)(item, event);
+                (self.f)(item, event);
             }
         }
     }
@@ -67,7 +74,7 @@ mod impl_visitor {
     impl<T: Any, F: FnMut(&mut T, Event)> VisitorMut for FnVisitor<T, F> {
         fn visit_mut(&mut self, this: &mut dyn Any, event: Event) {
             if let Some(item) = <dyn Any>::downcast_mut::<T>(this) {
-                (&mut self.f)(item, event);
+                (self.f)(item, event);
             }
         }
     }
@@ -95,7 +102,8 @@ mod impl_visitor {
         })
     }
 
-    /// Create a visitor that only visits mutable items of some specific type from a function or a closure.
+    /// Create a visitor that only visits mutable items of some specific type from a function or a
+    /// closure.
     pub fn visitor_fn_mut<T, F: FnMut(&mut T, Event)>(f: F) -> FnVisitor<T, F> {
         FnVisitor { f, m: PhantomData }
     }
@@ -285,7 +293,9 @@ mod impl_std_primary {
 mod impl_std_container {
     use std::boxed::Box;
     use std::cell::Cell;
-    use std::sync::{Arc, Mutex, RwLock};
+    use std::sync::Arc;
+    use std::sync::Mutex;
+    use std::sync::RwLock;
 
     use super::*;
 

@@ -25,6 +25,7 @@ rust-version.workspace = true
 
 [features]
 default = []
+derive = ["visitor-derive"]
 std = []
 
 # Visit all trivial types.
@@ -45,6 +46,7 @@ traverse-trivial = []
 traverse-std = []
 
 [dependencies]
+visitor-derive = { workspace = true, optional = true }
 
 [lints]
 workspace = true
