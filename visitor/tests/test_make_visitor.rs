@@ -21,13 +21,10 @@ use visitor::TraversableMut;
 
 #[test]
 fn test_make_visitor() {
-    let mut visitor = visitor::function::make_visitor::<i32, (), _, _>(
-        |item| {
-            assert_eq!(*item, 42);
-            ControlFlow::Continue(())
-        },
-        |_| ControlFlow::Continue(()),
-    );
+    let mut visitor = visitor::function::make_visitor_enter::<i32, (), _>(|item| {
+        assert_eq!(*item, 42);
+        ControlFlow::Continue(())
+    });
 
     let result = 42i32.traverse(&mut visitor);
     assert!(result.is_continue());
@@ -35,13 +32,10 @@ fn test_make_visitor() {
 
 #[test]
 fn test_make_visitor_mut() {
-    let mut visitor = visitor::function::make_visitor_mut::<i32, (), _, _>(
-        |item| {
-            *item += 1;
-            ControlFlow::Continue(())
-        },
-        |_| ControlFlow::Continue(()),
-    );
+    let mut visitor = visitor::function::make_visitor_leave_mut::<i32, (), _>(|item| {
+        *item += 1;
+        ControlFlow::Continue(())
+    });
 
     let mut data = 42i32;
     let result = data.traverse_mut(&mut visitor);

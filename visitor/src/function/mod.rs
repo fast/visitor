@@ -75,6 +75,9 @@ where
     }
 }
 
+type DefaultVisitFn<T, B> = fn(&T) -> ControlFlow<B>;
+type DefaultVisitFnMut<T, B> = fn(&mut T) -> ControlFlow<B>;
+
 /// Create a visitor that only visits items of a specific type from a function or a closure.
 pub fn make_visitor<T, B, F1, F2>(enter: F1, leave: F2) -> FnVisitor<T, B, F1, F2>
 where
@@ -90,6 +93,34 @@ where
     }
 }
 
+/// Similar to [`make_visitor`], but the closure will only be called on entering.
+pub fn make_visitor_enter<T, B, F>(enter: F) -> FnVisitor<T, B, F, DefaultVisitFn<T, B>>
+where
+    T: Any,
+    F: FnMut(&T) -> ControlFlow<B>,
+{
+    FnVisitor {
+        enter,
+        leave: |_| ControlFlow::Continue(()),
+        marker_type: PhantomData,
+        marker_break: PhantomData,
+    }
+}
+
+/// Similar to [`make_visitor`], but the closure will only be called on leaving.
+pub fn make_visitor_leave<T, B, F>(leave: F) -> FnVisitor<T, B, DefaultVisitFn<T, B>, F>
+where
+    T: Any,
+    F: FnMut(&T) -> ControlFlow<B>,
+{
+    FnVisitor {
+        enter: |_| ControlFlow::Continue(()),
+        leave,
+        marker_type: PhantomData,
+        marker_break: PhantomData,
+    }
+}
+
 /// Create a visitor that only visits mutable items of a specific type from a function or a closure.
 pub fn make_visitor_mut<T, B, F1, F2>(enter: F1, leave: F2) -> FnVisitor<T, B, F1, F2>
 where
@@ -99,6 +130,34 @@ where
 {
     FnVisitor {
         enter,
+        leave,
+        marker_type: PhantomData,
+        marker_break: PhantomData,
+    }
+}
+
+/// Similar to [`make_visitor_mut`], but the closure will only be called on entering.
+pub fn make_visitor_enter_mut<T, B, F>(enter: F) -> FnVisitor<T, B, F, DefaultVisitFnMut<T, B>>
+where
+    T: Any,
+    F: FnMut(&mut T) -> ControlFlow<B>,
+{
+    FnVisitor {
+        enter,
+        leave: |_| ControlFlow::Continue(()),
+        marker_type: PhantomData,
+        marker_break: PhantomData,
+    }
+}
+
+/// Similar to [`make_visitor_mut`], but the closure will only be called on leaving.
+pub fn make_visitor_leave_mut<T, B, F>(leave: F) -> FnVisitor<T, B, DefaultVisitFnMut<T, B>, F>
+where
+    T: Any,
+    F: FnMut(&mut T) -> ControlFlow<B>,
+{
+    FnVisitor {
+        enter: |_| ControlFlow::Continue(()),
         leave,
         marker_type: PhantomData,
         marker_break: PhantomData,
