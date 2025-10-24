@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Visitors from functions or closures.
+
 use core::any::Any;
 use core::marker::PhantomData;
 
 use crate::Visitor;
 use crate::VisitorMut;
 
-/// Type returned by [`visitor_fn`].
+/// Type returned by `make_visitor` factories.
 pub struct FnVisitor<T, F1, F2> {
     enter: F1,
     leave: F2,
@@ -53,8 +55,8 @@ impl<T: Any, F1: FnMut(&mut T), F2: FnMut(&mut T)> VisitorMut for FnVisitor<T, F
     }
 }
 
-/// Create a visitor that only visits items of some specific type from a function or a closure.
-pub fn visitor_fn<T, F1: FnMut(&T), F2: FnMut(&T)>(enter: F1, leave: F2) -> FnVisitor<T, F1, F2> {
+/// Create a visitor that only visits items of a specific type from a function or a closure.
+pub fn make_visitor<T, F1: FnMut(&T), F2: FnMut(&T)>(enter: F1, leave: F2) -> FnVisitor<T, F1, F2> {
     FnVisitor {
         enter,
         leave,
@@ -62,19 +64,8 @@ pub fn visitor_fn<T, F1: FnMut(&T), F2: FnMut(&T)>(enter: F1, leave: F2) -> FnVi
     }
 }
 
-/// Similar to [`visitor_fn`], but the closure will only be called on entering the node.
-pub fn visitor_enter_fn<T, F: FnMut(&T)>(enter: F) -> FnVisitor<T, F, fn(&T)> {
-    visitor_fn(enter, |_| {})
-}
-
-/// Similar to [`visitor_fn`], but the closure will only be called on leaving the node.
-pub fn visitor_leave_fn<T, F: FnMut(&T)>(leave: F) -> FnVisitor<T, fn(&T), F> {
-    visitor_fn(|_| {}, leave)
-}
-
-/// Create a visitor that only visits mutable items of some specific type from a function or a
-/// closure.
-pub fn visitor_fn_mut<T, F1: FnMut(&mut T), F2: FnMut(&mut T)>(
+/// Create a visitor that only visits mutable items of a specific type from a function or a closure.
+pub fn make_visitor_mut<T, F1: FnMut(&mut T), F2: FnMut(&mut T)>(
     enter: F1,
     leave: F2,
 ) -> FnVisitor<T, F1, F2> {
@@ -83,14 +74,4 @@ pub fn visitor_fn_mut<T, F1: FnMut(&mut T), F2: FnMut(&mut T)>(
         leave,
         m: PhantomData,
     }
-}
-
-/// Similar to [`visitor_fn_mut`], but the closure will only be called on entering the node.
-pub fn visitor_enter_fn_mut<T, F: FnMut(&mut T)>(enter: F) -> FnVisitor<T, F, fn(&mut T)> {
-    visitor_fn_mut(enter, |_| {})
-}
-
-/// Similar to [`visitor_fn_mut`], but the closure will only be called on leaving the node.
-pub fn visitor_leave_fn_mut<T, F: FnMut(&mut T)>(leave: F) -> FnVisitor<T, fn(&mut T), F> {
-    visitor_fn_mut(|_| {}, leave)
 }

@@ -28,8 +28,7 @@ pub use visitor_derive::Traversable;
 /// See [`TraversableMut`].
 pub use visitor_derive::TraversableMut;
 
-mod impls;
-pub use self::impls::*;
+pub mod function;
 
 /// A visitor that can be used to traverse a data structure.
 pub trait Visitor {
