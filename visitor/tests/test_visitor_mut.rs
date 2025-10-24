@@ -16,7 +16,6 @@
 
 use std::any::Any;
 
-use visitor::Event;
 use visitor::TraversableMut;
 use visitor::VisitorMut;
 
@@ -40,14 +39,12 @@ struct ChainCutter {
 }
 
 impl VisitorMut for ChainCutter {
-    fn visit_mut(&mut self, this: &mut dyn Any, event: Event) {
-        if matches!(event, Event::Enter) {
-            if let Some(item) = this.downcast_mut::<Chain>() {
-                if self.cut_at_depth == 0 {
-                    item.next = None;
-                } else {
-                    self.cut_at_depth -= 1;
-                }
+    fn enter_mut(&mut self, this: &mut dyn Any) {
+        if let Some(item) = this.downcast_mut::<Chain>() {
+            if self.cut_at_depth == 0 {
+                item.next = None;
+            } else {
+                self.cut_at_depth -= 1;
             }
         }
     }

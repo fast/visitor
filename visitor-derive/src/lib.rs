@@ -216,8 +216,13 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
         Span::call_site(),
     );
 
-    let visit_method = Ident::new(
-        if mutable { "visit_mut" } else { "visit" },
+    let enter_method = Ident::new(
+        if mutable { "enter_mut" } else { "enter" },
+        Span::call_site(),
+    );
+
+    let leave_method = Ident::new(
+        if mutable { "leave_mut" } else { "leave" },
         Span::call_site(),
     );
 
@@ -225,15 +230,15 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
         None
     } else {
         Some(quote! {
-            ::visitor::#visitor::#visit_method(visitor, self, ::visitor::Event::Enter);
+            ::visitor::#visitor::#enter_method(visitor, self);
         })
     };
 
-    let exit_self = if skip_visit_self {
+    let leave_self = if skip_visit_self {
         None
     } else {
         Some(quote! {
-            ::visitor::#visitor::#visit_method(visitor, self, ::visitor::Event::Exit);
+            ::visitor::#visitor::#leave_method(visitor, self);
         })
     };
 
@@ -273,7 +278,7 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
             fn #method<V: ::visitor::#visitor>(& #mut_modifier self, visitor: &mut V) {
                 #enter_self
                 #traverse_fields
-                #exit_self
+                #leave_self
             }
         }
     })

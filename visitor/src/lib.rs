@@ -28,107 +28,34 @@ pub use visitor_derive::Traversable;
 /// See [`TraversableMut`].
 pub use visitor_derive::TraversableMut;
 
-pub use self::impl_visitor::*;
-
-/// Whether the visitor is entering or exiting a node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Event {
-    /// The visitor is entering a node.
-    Enter,
-    /// The visitor is exiting a node.
-    Exit,
-}
+pub mod function;
 
 /// A visitor that can be used to traverse a data structure.
 pub trait Visitor {
-    /// Called when the visitor is traversing a node.
-    fn visit(&mut self, this: &dyn core::any::Any, event: Event);
+    /// Called when the visitor is entering a node.
+    ///
+    /// Default implementation does nothing.
+    #[expect(unused_variables)]
+    fn enter(&mut self, this: &dyn core::any::Any) {}
+    /// Called when the visitor is leaving a node.
+    ///
+    /// Default implementation does nothing.
+    #[expect(unused_variables)]
+    fn leave(&mut self, this: &dyn core::any::Any) {}
 }
 
 /// A visitor that can be used to traverse a mutable data structure.
 pub trait VisitorMut {
-    /// Called when the visitor is traversing a mutable node.
-    fn visit_mut(&mut self, this: &mut dyn core::any::Any, event: Event);
-}
-
-mod impl_visitor {
-    use core::any::Any;
-    use core::marker::PhantomData;
-
-    use super::*;
-
-    /// Type returned by [`visitor_fn`].
-    pub struct FnVisitor<T, F> {
-        f: F,
-        m: PhantomData<T>,
-    }
-
-    impl<T: Any, F: FnMut(&T, Event)> Visitor for FnVisitor<T, F> {
-        fn visit(&mut self, this: &dyn Any, event: Event) {
-            if let Some(item) = <dyn Any>::downcast_ref::<T>(this) {
-                (self.f)(item, event);
-            }
-        }
-    }
-
-    impl<T: Any, F: FnMut(&mut T, Event)> VisitorMut for FnVisitor<T, F> {
-        fn visit_mut(&mut self, this: &mut dyn Any, event: Event) {
-            if let Some(item) = <dyn Any>::downcast_mut::<T>(this) {
-                (self.f)(item, event);
-            }
-        }
-    }
-
-    /// Create a visitor that only visits items of some specific type from a function or a closure.
-    pub fn visitor_fn<T, F: FnMut(&T, Event)>(f: F) -> FnVisitor<T, F> {
-        FnVisitor { f, m: PhantomData }
-    }
-
-    /// Similar to [`visitor_fn`], but the closure will only be called on [`Event::Enter`].
-    pub fn visitor_enter_fn<T, F: FnMut(&T)>(mut f: F) -> FnVisitor<T, impl FnMut(&T, Event)> {
-        visitor_fn(move |item, event| {
-            if let Event::Enter = event {
-                f(item);
-            }
-        })
-    }
-
-    /// Similar to [`visitor_fn`], but the closure will only be called on [`Event::Exit`].
-    pub fn visitor_exit_fn<T, F: FnMut(&T)>(mut f: F) -> FnVisitor<T, impl FnMut(&T, Event)> {
-        visitor_fn(move |item, event| {
-            if let Event::Exit = event {
-                f(item);
-            }
-        })
-    }
-
-    /// Create a visitor that only visits mutable items of some specific type from a function or a
-    /// closure.
-    pub fn visitor_fn_mut<T, F: FnMut(&mut T, Event)>(f: F) -> FnVisitor<T, F> {
-        FnVisitor { f, m: PhantomData }
-    }
-
-    /// Similar to [`visitor_fn_mut`], but the closure will only be called on [`Event::Enter`].
-    pub fn visitor_enter_fn_mut<T, F: FnMut(&mut T)>(
-        mut f: F,
-    ) -> FnVisitor<T, impl FnMut(&mut T, Event)> {
-        visitor_fn_mut(move |item, event| {
-            if let Event::Enter = event {
-                f(item);
-            }
-        })
-    }
-
-    /// Similar to [`visitor_fn_mut`], but the closure will only be called on [`Event::Exit`].
-    pub fn visitor_exit_fn_mut<T, F: FnMut(&mut T)>(
-        mut f: F,
-    ) -> FnVisitor<T, impl FnMut(&mut T, Event)> {
-        visitor_fn_mut(move |item, event| {
-            if let Event::Exit = event {
-                f(item);
-            }
-        })
-    }
+    /// Called when the visitor is entering a mutable node.
+    ///
+    /// Default implementation does nothing.
+    #[expect(unused_variables)]
+    fn enter_mut(&mut self, this: &mut dyn core::any::Any) {}
+    /// Called when the visitor is leaving a mutable node.
+    ///
+    /// Default implementation does nothing.
+    #[expect(unused_variables)]
+    fn leave_mut(&mut self, this: &mut dyn core::any::Any) {}
 }
 
 /// A trait for types that can be traversed by a visitor.
@@ -161,15 +88,15 @@ macro_rules! trivial_traverse_impl {
     ( $type:ty ) => {
         impl Traversable for $type {
             fn traverse<V: Visitor>(&self, visitor: &mut V) {
-                visitor.visit(self, Event::Enter);
-                visitor.visit(self, Event::Exit);
+                visitor.enter(self);
+                visitor.leave(self);
             }
         }
 
         impl TraversableMut for $type {
             fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-                visitor.visit_mut(self, Event::Enter);
-                visitor.visit_mut(self, Event::Exit);
+                visitor.enter_mut(self);
+                visitor.leave_mut(self);
             }
         }
     };
