@@ -15,6 +15,7 @@
 #![cfg(all(feature = "std", feature = "derive"))]
 
 use std::any::Any;
+use std::ops::ControlFlow;
 
 use visitor::TraversableMut;
 use visitor::VisitorMut;
@@ -39,7 +40,9 @@ struct ChainCutter {
 }
 
 impl VisitorMut for ChainCutter {
-    fn enter_mut(&mut self, this: &mut dyn Any) {
+    type Break = ();
+
+    fn enter_mut(&mut self, this: &mut dyn Any) -> ControlFlow<Self::Break> {
         if let Some(item) = this.downcast_mut::<Chain>() {
             if self.cut_at_depth == 0 {
                 item.next = None;
@@ -47,6 +50,8 @@ impl VisitorMut for ChainCutter {
                 self.cut_at_depth -= 1;
             }
         }
+
+        ControlFlow::Continue(())
     }
 }
 
@@ -60,6 +65,7 @@ fn test() {
     assert_eq!(chain.depth(), 2);
 
     let mut cutter = ChainCutter { cut_at_depth: 1 };
-    chain.traverse_mut(&mut cutter);
+    let result = chain.traverse_mut(&mut cutter);
+    assert!(result.is_continue());
     assert_eq!(chain.depth(), 1);
 }

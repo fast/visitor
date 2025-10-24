@@ -16,62 +16,150 @@
 
 use core::any::Any;
 use core::marker::PhantomData;
+use core::ops::ControlFlow;
 
 use crate::Visitor;
 use crate::VisitorMut;
 
 /// Type returned by `make_visitor` factories.
-pub struct FnVisitor<T, F1, F2> {
+pub struct FnVisitor<T, B, F1, F2> {
     enter: F1,
     leave: F2,
-    m: PhantomData<T>,
+    marker_type: PhantomData<T>,
+    marker_break: PhantomData<B>,
 }
 
-impl<T: Any, F1: FnMut(&T), F2: FnMut(&T)> Visitor for FnVisitor<T, F1, F2> {
-    fn enter(&mut self, this: &dyn Any) {
+impl<T, B, F1, F2> Visitor for FnVisitor<T, B, F1, F2>
+where
+    T: Any,
+    F1: FnMut(&T) -> ControlFlow<B>,
+    F2: FnMut(&T) -> ControlFlow<B>,
+{
+    type Break = B;
+
+    fn enter(&mut self, this: &dyn Any) -> ControlFlow<Self::Break> {
         if let Some(item) = this.downcast_ref::<T>() {
-            (self.enter)(item);
+            (self.enter)(item)?;
         }
+        ControlFlow::Continue(())
     }
 
-    fn leave(&mut self, this: &dyn Any) {
+    fn leave(&mut self, this: &dyn Any) -> ControlFlow<Self::Break> {
         if let Some(item) = this.downcast_ref::<T>() {
-            (self.leave)(item);
+            (self.leave)(item)?;
         }
+        ControlFlow::Continue(())
     }
 }
 
-impl<T: Any, F1: FnMut(&mut T), F2: FnMut(&mut T)> VisitorMut for FnVisitor<T, F1, F2> {
-    fn enter_mut(&mut self, this: &mut dyn Any) {
+impl<T, B, F1, F2> VisitorMut for FnVisitor<T, B, F1, F2>
+where
+    T: Any,
+    F1: FnMut(&mut T) -> ControlFlow<B>,
+    F2: FnMut(&mut T) -> ControlFlow<B>,
+{
+    type Break = B;
+
+    fn enter_mut(&mut self, this: &mut dyn Any) -> ControlFlow<Self::Break> {
         if let Some(item) = this.downcast_mut::<T>() {
-            (self.enter)(item);
+            (self.enter)(item)?;
         }
+        ControlFlow::Continue(())
     }
 
-    fn leave_mut(&mut self, this: &mut dyn Any) {
+    fn leave_mut(&mut self, this: &mut dyn Any) -> ControlFlow<Self::Break> {
         if let Some(item) = this.downcast_mut::<T>() {
-            (self.leave)(item);
+            (self.leave)(item)?;
         }
+        ControlFlow::Continue(())
     }
 }
+
+type DefaultVisitFn<T, B> = fn(&T) -> ControlFlow<B>;
+type DefaultVisitFnMut<T, B> = fn(&mut T) -> ControlFlow<B>;
 
 /// Create a visitor that only visits items of a specific type from a function or a closure.
-pub fn make_visitor<T, F1: FnMut(&T), F2: FnMut(&T)>(enter: F1, leave: F2) -> FnVisitor<T, F1, F2> {
+pub fn make_visitor<T, B, F1, F2>(enter: F1, leave: F2) -> FnVisitor<T, B, F1, F2>
+where
+    T: Any,
+    F1: FnMut(&T) -> ControlFlow<B>,
+    F2: FnMut(&T) -> ControlFlow<B>,
+{
     FnVisitor {
         enter,
         leave,
-        m: PhantomData,
+        marker_type: PhantomData,
+        marker_break: PhantomData,
+    }
+}
+
+/// Similar to [`make_visitor`], but the closure will only be called on entering.
+pub fn make_visitor_enter<T, B, F>(enter: F) -> FnVisitor<T, B, F, DefaultVisitFn<T, B>>
+where
+    T: Any,
+    F: FnMut(&T) -> ControlFlow<B>,
+{
+    FnVisitor {
+        enter,
+        leave: |_| ControlFlow::Continue(()),
+        marker_type: PhantomData,
+        marker_break: PhantomData,
+    }
+}
+
+/// Similar to [`make_visitor`], but the closure will only be called on leaving.
+pub fn make_visitor_leave<T, B, F>(leave: F) -> FnVisitor<T, B, DefaultVisitFn<T, B>, F>
+where
+    T: Any,
+    F: FnMut(&T) -> ControlFlow<B>,
+{
+    FnVisitor {
+        enter: |_| ControlFlow::Continue(()),
+        leave,
+        marker_type: PhantomData,
+        marker_break: PhantomData,
     }
 }
 
 /// Create a visitor that only visits mutable items of a specific type from a function or a closure.
-pub fn make_visitor_mut<T, F1: FnMut(&mut T), F2: FnMut(&mut T)>(
-    enter: F1,
-    leave: F2,
-) -> FnVisitor<T, F1, F2> {
+pub fn make_visitor_mut<T, B, F1, F2>(enter: F1, leave: F2) -> FnVisitor<T, B, F1, F2>
+where
+    T: Any,
+    F1: FnMut(&mut T) -> ControlFlow<B>,
+    F2: FnMut(&mut T) -> ControlFlow<B>,
+{
     FnVisitor {
         enter,
         leave,
-        m: PhantomData,
+        marker_type: PhantomData,
+        marker_break: PhantomData,
+    }
+}
+
+/// Similar to [`make_visitor_mut`], but the closure will only be called on entering.
+pub fn make_visitor_enter_mut<T, B, F>(enter: F) -> FnVisitor<T, B, F, DefaultVisitFnMut<T, B>>
+where
+    T: Any,
+    F: FnMut(&mut T) -> ControlFlow<B>,
+{
+    FnVisitor {
+        enter,
+        leave: |_| ControlFlow::Continue(()),
+        marker_type: PhantomData,
+        marker_break: PhantomData,
+    }
+}
+
+/// Similar to [`make_visitor_mut`], but the closure will only be called on leaving.
+pub fn make_visitor_leave_mut<T, B, F>(leave: F) -> FnVisitor<T, B, DefaultVisitFnMut<T, B>, F>
+where
+    T: Any,
+    F: FnMut(&mut T) -> ControlFlow<B>,
+{
+    FnVisitor {
+        enter: |_| ControlFlow::Continue(()),
+        leave,
+        marker_type: PhantomData,
+        marker_break: PhantomData,
     }
 }

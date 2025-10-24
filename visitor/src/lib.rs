@@ -21,6 +21,8 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+use core::ops::ControlFlow;
+
 #[cfg(feature = "derive")]
 /// See [`Traversable`].
 pub use visitor_derive::Traversable;
@@ -32,53 +34,75 @@ pub mod function;
 
 /// A visitor that can be used to traverse a data structure.
 pub trait Visitor {
+    /// The type that can be used to break traversal early.
+    type Break;
+
     /// Called when the visitor is entering a node.
     ///
-    /// Default implementation does nothing.
-    #[expect(unused_variables)]
-    fn enter(&mut self, this: &dyn core::any::Any) {}
+    /// Default implementation does nothing and continues traversal.
+    fn enter(&mut self, this: &dyn core::any::Any) -> ControlFlow<Self::Break> {
+        let _ = this;
+        ControlFlow::Continue(())
+    }
+
     /// Called when the visitor is leaving a node.
     ///
-    /// Default implementation does nothing.
-    #[expect(unused_variables)]
-    fn leave(&mut self, this: &dyn core::any::Any) {}
+    /// Default implementation does nothing and continues traversal.
+    fn leave(&mut self, this: &dyn core::any::Any) -> ControlFlow<Self::Break> {
+        let _ = this;
+        ControlFlow::Continue(())
+    }
 }
 
 /// A visitor that can be used to traverse a mutable data structure.
 pub trait VisitorMut {
+    /// The type that can be used to break traversal early.
+    type Break;
+
     /// Called when the visitor is entering a mutable node.
     ///
-    /// Default implementation does nothing.
-    #[expect(unused_variables)]
-    fn enter_mut(&mut self, this: &mut dyn core::any::Any) {}
+    /// Default implementation does nothing and continues traversal.
+    fn enter_mut(&mut self, this: &mut dyn core::any::Any) -> ControlFlow<Self::Break> {
+        let _ = this;
+        ControlFlow::Continue(())
+    }
+
     /// Called when the visitor is leaving a mutable node.
     ///
-    /// Default implementation does nothing.
-    #[expect(unused_variables)]
-    fn leave_mut(&mut self, this: &mut dyn core::any::Any) {}
+    /// Default implementation does nothing and continues traversal.
+    fn leave_mut(&mut self, this: &mut dyn core::any::Any) -> ControlFlow<Self::Break> {
+        let _ = this;
+        ControlFlow::Continue(())
+    }
 }
 
 /// A trait for types that can be traversed by a visitor.
 pub trait Traversable: core::any::Any {
     /// Traverse the data structure with the given visitor.
-    fn traverse<V: Visitor>(&self, visitor: &mut V);
+    fn traverse<V: Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break>;
 }
 
 /// A trait for types that can be traversed mutably by a visitor.
 pub trait TraversableMut: core::any::Any {
     /// Traverse the mutable data structure with the given visitor.
-    fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V);
+    fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) -> ControlFlow<V::Break>;
 }
 
 #[allow(unused_macros)]
 macro_rules! blank_traverse_impl {
     ( $type:ty ) => {
         impl Traversable for $type {
-            fn traverse<V: Visitor>(&self, _visitor: &mut V) {}
+            #[inline]
+            fn traverse<V: Visitor>(&self, _visitor: &mut V) -> ControlFlow<V::Break> {
+                ControlFlow::Continue(())
+            }
         }
 
         impl TraversableMut for $type {
-            fn traverse_mut<V: VisitorMut>(&mut self, _visitor: &mut V) {}
+            #[inline]
+            fn traverse_mut<V: VisitorMut>(&mut self, _visitor: &mut V) -> ControlFlow<V::Break> {
+                ControlFlow::Continue(())
+            }
         }
     };
 }
@@ -87,16 +111,18 @@ macro_rules! blank_traverse_impl {
 macro_rules! trivial_traverse_impl {
     ( $type:ty ) => {
         impl Traversable for $type {
-            fn traverse<V: Visitor>(&self, visitor: &mut V) {
-                visitor.enter(self);
-                visitor.leave(self);
+            fn traverse<V: Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break> {
+                visitor.enter(self)?;
+                visitor.leave(self)?;
+                ControlFlow::Continue(())
             }
         }
 
         impl TraversableMut for $type {
-            fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-                visitor.enter_mut(self);
-                visitor.leave_mut(self);
+            fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) -> ControlFlow<V::Break> {
+                visitor.enter_mut(self)?;
+                visitor.leave_mut(self)?;
+                ControlFlow::Continue(())
             }
         }
     };
@@ -154,10 +180,11 @@ mod impl_tuple {
                         $type: Traversable
                     ),+
                 {
-                    fn traverse<V: Visitor>(&self, visitor: &mut V) {
+                    fn traverse<V: Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break> {
                         $(
-                            self.$field.traverse(visitor);
+                            self.$field.traverse(visitor)?;
                         )+
+                        ControlFlow::Continue(())
                     }
                 }
 
@@ -167,10 +194,11 @@ mod impl_tuple {
                         $type: TraversableMut
                     ),+
                 {
-                    fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
+                    fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) -> ControlFlow<V::Break> {
                         $(
-                            self.$field.traverse_mut(visitor);
+                            self.$field.traverse_mut(visitor)?;
                         )+
+                        ControlFlow::Continue(())
                     }
                 }
             )+
@@ -228,38 +256,39 @@ mod impl_std_container {
 
     // Helper traits to the generic `IntoIterator` Traversable impl
     trait DerefAndTraverse {
-        fn deref_and_traverse<V: Visitor>(self, visitor: &mut V);
+        fn deref_and_traverse<V: Visitor>(self, visitor: &mut V) -> ControlFlow<V::Break>;
     }
 
     trait DerefAndTraverseMut {
-        fn deref_and_traverse_mut<V: VisitorMut>(self, visitor: &mut V);
+        fn deref_and_traverse_mut<V: VisitorMut>(self, visitor: &mut V) -> ControlFlow<V::Break>;
     }
 
     // Most collections iterate over item references, this is the trait impl that handles that case
     impl<T: Traversable> DerefAndTraverse for &T {
-        fn deref_and_traverse<V: Visitor>(self, visitor: &mut V) {
-            self.traverse(visitor);
+        fn deref_and_traverse<V: Visitor>(self, visitor: &mut V) -> ControlFlow<V::Break> {
+            self.traverse(visitor)
         }
     }
 
     impl<T: TraversableMut> DerefAndTraverseMut for &mut T {
-        fn deref_and_traverse_mut<V: VisitorMut>(self, visitor: &mut V) {
-            self.traverse_mut(visitor);
+        fn deref_and_traverse_mut<V: VisitorMut>(self, visitor: &mut V) -> ControlFlow<V::Break> {
+            self.traverse_mut(visitor)
         }
     }
 
     // Map-like collections iterate over item references pairs
     impl<TK: Traversable, TV: Traversable> DerefAndTraverse for (&TK, &TV) {
-        fn deref_and_traverse<V: Visitor>(self, visitor: &mut V) {
-            self.0.traverse(visitor);
-            self.1.traverse(visitor);
+        fn deref_and_traverse<V: Visitor>(self, visitor: &mut V) -> ControlFlow<V::Break> {
+            self.0.traverse(visitor)?;
+            self.1.traverse(visitor)?;
+            ControlFlow::Continue(())
         }
     }
 
     // Map-like collections have mutable iterators that allow mutating only the value, not the key
     impl<TK, TV: TraversableMut> DerefAndTraverseMut for (TK, &mut TV) {
-        fn deref_and_traverse_mut<V: VisitorMut>(self, visitor: &mut V) {
-            self.1.traverse_mut(visitor);
+        fn deref_and_traverse_mut<V: VisitorMut>(self, visitor: &mut V) -> ControlFlow<V::Break> {
+            self.1.traverse_mut(visitor)
         }
     }
 
@@ -273,10 +302,11 @@ mod impl_std_container {
                 for<'a> <&'a $type as IntoIterator>::Item: DerefAndTraverse,
             {
                 #[allow(for_loops_over_fallibles)]
-                fn traverse<V: Visitor>(&self, visitor: &mut V) {
+                fn traverse<V: Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break> {
                     for item in self {
-                        item.deref_and_traverse(visitor);
+                        item.deref_and_traverse(visitor)?;
                     }
+                    ControlFlow::Continue(())
                 }
             }
 
@@ -287,10 +317,11 @@ mod impl_std_container {
                 for<'a> <&'a mut $type as IntoIterator>::Item: DerefAndTraverseMut,
             {
                 #[allow(for_loops_over_fallibles)]
-                fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
+                fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) -> ControlFlow<V::Break> {
                     for item in self {
-                        item.deref_and_traverse_mut(visitor);
+                        item.deref_and_traverse_mut(visitor)?;
                     }
+                    ControlFlow::Continue(())
                 }
             }
         };
@@ -310,20 +341,20 @@ mod impl_std_container {
     impl_drive_for_into_iterator! { Result<T, U> ; T, U }
 
     impl<T: Traversable> Traversable for Box<T> {
-        fn traverse<V: Visitor>(&self, visitor: &mut V) {
-            (**self).traverse(visitor);
+        fn traverse<V: Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break> {
+            (**self).traverse(visitor)
         }
     }
 
     impl<T: TraversableMut> TraversableMut for Box<T> {
-        fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-            (**self).traverse_mut(visitor);
+        fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) -> ControlFlow<V::Break> {
+            (**self).traverse_mut(visitor)
         }
     }
 
     impl<T: Traversable> Traversable for Arc<T> {
-        fn traverse<V: Visitor>(&self, visitor: &mut V) {
-            (**self).traverse(visitor);
+        fn traverse<V: Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break> {
+            (**self).traverse(visitor)
         }
     }
 
@@ -331,9 +362,9 @@ mod impl_std_container {
     where
         T: Traversable,
     {
-        fn traverse<V: Visitor>(&self, visitor: &mut V) {
+        fn traverse<V: Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break> {
             let lock = self.lock().unwrap();
-            lock.traverse(visitor);
+            lock.traverse(visitor)
         }
     }
 
@@ -341,9 +372,9 @@ mod impl_std_container {
     where
         T: Traversable,
     {
-        fn traverse<V: Visitor>(&self, visitor: &mut V) {
+        fn traverse<V: Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break> {
             let lock = self.read().unwrap();
-            lock.traverse(visitor);
+            lock.traverse(visitor)
         }
     }
 
@@ -351,9 +382,9 @@ mod impl_std_container {
     where
         T: TraversableMut,
     {
-        fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
+        fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) -> ControlFlow<V::Break> {
             let mut lock = self.lock().unwrap();
-            lock.traverse_mut(visitor);
+            lock.traverse_mut(visitor)
         }
     }
 
@@ -361,9 +392,9 @@ mod impl_std_container {
     where
         T: TraversableMut,
     {
-        fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
+        fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) -> ControlFlow<V::Break> {
             let mut lock = self.write().unwrap();
-            lock.traverse_mut(visitor);
+            lock.traverse_mut(visitor)
         }
     }
 
@@ -371,8 +402,8 @@ mod impl_std_container {
     where
         T: Traversable + Copy,
     {
-        fn traverse<V: Visitor>(&self, visitor: &mut V) {
-            self.get().traverse(visitor);
+        fn traverse<V: Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break> {
+            self.get().traverse(visitor)
         }
     }
 
@@ -380,8 +411,8 @@ mod impl_std_container {
     where
         T: TraversableMut,
     {
-        fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) {
-            self.get_mut().traverse_mut(visitor);
+        fn traverse_mut<V: VisitorMut>(&mut self, visitor: &mut V) -> ControlFlow<V::Break> {
+            self.get_mut().traverse_mut(visitor)
         }
     }
 }
