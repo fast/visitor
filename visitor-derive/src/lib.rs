@@ -230,7 +230,7 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
         None
     } else {
         Some(quote! {
-            ::visitor::#visitor::#enter_method(visitor, self);
+            ::visitor::#visitor::#enter_method(visitor, self)?;
         })
     };
 
@@ -238,7 +238,7 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
         None
     } else {
         Some(quote! {
-            ::visitor::#visitor::#leave_method(visitor, self);
+            ::visitor::#visitor::#leave_method(visitor, self)?;
         })
     };
 
@@ -275,10 +275,14 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
 
     Ok(quote! {
         impl #impl_generics ::visitor::#impl_trait for #name #ty_generics #where_clause {
-            fn #method<V: ::visitor::#visitor>(& #mut_modifier self, visitor: &mut V) {
+            fn #method<V: ::visitor::#visitor>(
+                & #mut_modifier self,
+                visitor: &mut V
+            ) -> ::core::ops::ControlFlow<V::Break> {
                 #enter_self
                 #traverse_fields
                 #leave_self
+                ::core::ops::ControlFlow::Continue(())
             }
         }
     })
@@ -410,6 +414,6 @@ fn traverse_field(value: &TokenStream, field: Field, mutable: bool) -> Result<To
     )?;
 
     Ok(quote! {
-        #traverse_fn(#value, visitor);
+        #traverse_fn(#value, visitor)?;
     })
 }
