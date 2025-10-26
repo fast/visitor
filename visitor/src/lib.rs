@@ -32,6 +32,9 @@ pub use visitor_derive::TraversableMut;
 
 pub mod function;
 
+/// Implementations for third-party library types.
+mod impls;
+
 /// A visitor that can be used to traverse a data structure.
 pub trait Visitor {
     /// The type that can be used to break traversal early.
