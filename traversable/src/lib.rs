@@ -25,10 +25,10 @@ use core::ops::ControlFlow;
 
 #[cfg(feature = "derive")]
 /// See [`Traversable`].
-pub use visitor_derive::Traversable;
+pub use traversable_derive::Traversable;
 #[cfg(feature = "derive")]
 /// See [`TraversableMut`].
-pub use visitor_derive::TraversableMut;
+pub use traversable_derive::TraversableMut;
 
 pub mod function;
 

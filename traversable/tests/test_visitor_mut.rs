@@ -17,8 +17,8 @@
 use std::any::Any;
 use std::ops::ControlFlow;
 
-use visitor::TraversableMut;
-use visitor::VisitorMut;
+use traversable::TraversableMut;
+use traversable::VisitorMut;
 
 #[derive(TraversableMut)]
 struct Chain {

@@ -18,12 +18,12 @@ use std::any::Any;
 use std::ops::ControlFlow;
 
 use ordered_float_5::OrderedFloat;
-use visitor::Traversable as _;
-use visitor::TraversableMut as _;
-use visitor::Visitor;
-use visitor::VisitorMut;
-use visitor_derive::Traversable;
-use visitor_derive::TraversableMut;
+use traversable::Traversable as _;
+use traversable::TraversableMut as _;
+use traversable::Visitor;
+use traversable::VisitorMut;
+use traversable_derive::Traversable;
+use traversable_derive::TraversableMut;
 
 #[test]
 fn test_ordered_float() {

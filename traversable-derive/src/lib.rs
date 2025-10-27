@@ -230,7 +230,7 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
         None
     } else {
         Some(quote! {
-            ::visitor::#visitor::#enter_method(visitor, self)?;
+            ::traversable::#visitor::#enter_method(visitor, self)?;
         })
     };
 
@@ -238,7 +238,7 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
         None
     } else {
         Some(quote! {
-            ::visitor::#visitor::#leave_method(visitor, self)?;
+            ::traversable::#visitor::#leave_method(visitor, self)?;
         })
     };
 
@@ -274,8 +274,8 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
     };
 
     Ok(quote! {
-        impl #impl_generics ::visitor::#impl_trait for #name #ty_generics #where_clause {
-            fn #method<V: ::visitor::#visitor>(
+        impl #impl_generics ::traversable::#impl_trait for #name #ty_generics #where_clause {
+            fn #method<V: ::traversable::#visitor>(
                 & #mut_modifier self,
                 visitor: &mut V
             ) -> ::core::ops::ControlFlow<V::Break> {
@@ -405,9 +405,9 @@ fn traverse_field(value: &TokenStream, field: Field, mutable: bool) -> Result<To
     let traverse_fn = params.param("with")?.map_or_else(
         || {
             parse_str(if mutable {
-                "::visitor::TraversableMut::traverse_mut"
+                "::traversable::TraversableMut::traverse_mut"
             } else {
-                "::visitor::Traversable::traverse"
+                "::traversable::Traversable::traverse"
             })
         },
         |param| param.string_literal()?.parse::<Path>(),
