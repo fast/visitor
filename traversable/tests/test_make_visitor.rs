@@ -16,12 +16,14 @@
 
 use core::ops::ControlFlow;
 
-use visitor::Traversable;
-use visitor::TraversableMut;
+use traversable::Traversable;
+use traversable::TraversableMut;
+use traversable::function::make_visitor_enter;
+use traversable::function::make_visitor_leave_mut;
 
 #[test]
 fn test_make_visitor() {
-    let mut visitor = visitor::function::make_visitor_enter::<i32, (), _>(|item| {
+    let mut visitor = make_visitor_enter::<i32, (), _>(|item| {
         assert_eq!(*item, 42);
         ControlFlow::Continue(())
     });
@@ -32,7 +34,7 @@ fn test_make_visitor() {
 
 #[test]
 fn test_make_visitor_mut() {
-    let mut visitor = visitor::function::make_visitor_leave_mut::<i32, (), _>(|item| {
+    let mut visitor = make_visitor_leave_mut::<i32, (), _>(|item| {
         *item += 1;
         ControlFlow::Continue(())
     });

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 [package]
-name = "visitor"
+name = "traversable"
 version = "0.1.0"
 
 edition.workspace = true
@@ -25,7 +25,7 @@ rust-version.workspace = true
 
 [features]
 default = []
-derive = ["visitor-derive"]
+derive = ["dep:traversable-derive"]
 
 # Implement Traversal for standard library types.
 std = []
@@ -52,7 +52,7 @@ ordered-float-5 = ["dep:ordered-float-5"]
 stacksafe-01 = ["dep:stacksafe-01"]
 
 [dependencies]
-visitor-derive = { workspace = true, optional = true }
+traversable-derive = { workspace = true, optional = true }
 
 # Optional dependencies for third-party library support
 ordered-float-5 = { version = "5.1", default-features = false, optional = true, package = "ordered-float" }
