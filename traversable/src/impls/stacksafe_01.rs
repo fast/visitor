@@ -12,20 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ops::ControlFlow;
+use core::ops::ControlFlow;
 
 use stacksafe_01::StackSafe;
+use stacksafe_01::stacksafe;
 
 use crate::Traversable;
 use crate::TraversableMut;
 
 impl<T: Traversable> Traversable for StackSafe<T> {
+    #[stacksafe(crate = stacksafe_01)]
     fn traverse<V: crate::Visitor>(&self, visitor: &mut V) -> ControlFlow<V::Break> {
         (**self).traverse(visitor)
     }
 }
 
 impl<T: TraversableMut> TraversableMut for StackSafe<T> {
+    #[stacksafe(crate = stacksafe_01)]
     fn traverse_mut<V: crate::VisitorMut>(&mut self, visitor: &mut V) -> ControlFlow<V::Break> {
         (**self).traverse_mut(visitor)
     }
