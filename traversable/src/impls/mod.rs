@@ -14,5 +14,5 @@
 
 #[cfg(feature = "ordered-float-5")]
 mod ordered_float_5;
-#[cfg(feature = "stacksafe-01")]
-mod stacksafe_01;
+#[cfg(feature = "stacksafe-1")]
+mod stacksafe_1;
