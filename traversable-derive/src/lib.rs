@@ -40,7 +40,7 @@ use syn::Result;
 use syn::Token;
 use syn::Variant;
 use syn::parse_macro_input;
-use syn::parse_str;
+use syn::parse_quote;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Mut;
@@ -198,6 +198,11 @@ impl Param {
     }
 }
 
+#[inline(always)]
+fn resolve_crate_name() -> Path {
+    parse_quote!(::traversable)
+}
+
 fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
     let mut params = Params::from_attrs(input.attrs, "traverse")?;
     params.validate(&["skip"])?;
@@ -226,11 +231,13 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
         Span::call_site(),
     );
 
+    let crate_name = resolve_crate_name();
+
     let enter_self = if skip_visit_self {
         None
     } else {
         Some(quote! {
-            ::traversable::#visitor::#enter_method(visitor, self)?;
+            #crate_name::#visitor::#enter_method(visitor, self)?;
         })
     };
 
@@ -238,7 +245,7 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
         None
     } else {
         Some(quote! {
-            ::traversable::#visitor::#leave_method(visitor, self)?;
+            #crate_name::#visitor::#leave_method(visitor, self)?;
         })
     };
 
@@ -274,8 +281,8 @@ fn impl_traversable(input: DeriveInput, mutable: bool) -> Result<TokenStream> {
     };
 
     Ok(quote! {
-        impl #impl_generics ::traversable::#impl_trait for #name #ty_generics #where_clause {
-            fn #method<V: ::traversable::#visitor>(
+        impl #impl_generics #crate_name::#impl_trait for #name #ty_generics #where_clause {
+            fn #method<V: #crate_name::#visitor>(
                 & #mut_modifier self,
                 visitor: &mut V
             ) -> ::core::ops::ControlFlow<V::Break> {
@@ -402,18 +409,19 @@ fn traverse_field(value: &TokenStream, field: Field, mutable: bool) -> Result<To
         return Ok(TokenStream::new());
     }
 
-    let traverse_fn = params.param("with")?.map_or_else(
-        || {
-            parse_str(if mutable {
-                "::traversable::TraversableMut::traverse_mut"
-            } else {
-                "::traversable::Traversable::traverse"
-            })
-        },
-        |param| param.string_literal()?.parse::<Path>(),
-    )?;
+    let crate_name = resolve_crate_name();
 
-    Ok(quote! {
-        #traverse_fn(#value, visitor)?;
-    })
+    match params.param("with")? {
+        None => Ok(if mutable {
+            quote! { #crate_name::TraversableMut::traverse_mut(#value, visitor)?; }
+        } else {
+            quote! { #crate_name::Traversable::traverse(#value, visitor)?; }
+        }),
+        Some(traverse_fn) => {
+            let traverse_fn = traverse_fn.string_literal()?.parse::<Path>()?;
+            Ok(quote! {
+                #traverse_fn(#value, visitor)?;
+            })
+        }
+    }
 }

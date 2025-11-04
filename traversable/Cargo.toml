@@ -16,6 +16,10 @@
 name = "traversable"
 version = "0.1.0"
 
+description = "Visitor Pattern over Traversable data structures"
+documentation = "https://docs.rs/traversable"
+keywords = ["visitor", "traverse", "traversable"]
+
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true
@@ -49,14 +53,14 @@ traverse-std = []
 
 # Implement Traversal for third-party library types.
 ordered-float-5 = ["dep:ordered-float-5"]
-stacksafe-01 = ["dep:stacksafe-01"]
+stacksafe-1 = ["dep:stacksafe-1"]
 
 [dependencies]
 traversable-derive = { workspace = true, optional = true }
 
 # Optional dependencies for third-party library support
 ordered-float-5 = { version = "5.1", default-features = false, optional = true, package = "ordered-float" }
-stacksafe-01 = { version = "0.1", default-features = false, optional = true, package = "stacksafe" }
+stacksafe-1 = { version = "1", default-features = false, optional = true, package = "stacksafe" }
 
 [lints]
 workspace = true
